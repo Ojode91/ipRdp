@@ -1,4 +1,4 @@
-name: Windows 10 RDP with Customizable Auto IP Change
+name: Windows RDP with Ngrok and Tor
 
 on:
   push:
@@ -7,7 +7,6 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 9999
 
     steps:
     - name: Download Latest Ngrok
@@ -19,10 +18,8 @@ jobs:
       shell: powershell
 
     - name: Authenticate Ngrok
-      run: .\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
+      run: .\ngrok.exe authtoken "${{ secrets.NGROK_AUTH_TOKEN }}"
       shell: powershell
-      env:
-        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 
     - name: Enable Remote Desktop
       run: |
@@ -33,53 +30,33 @@ jobs:
 
     - name: Change User Password
       run: |
-        Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "@cyb3rking" -Force)
+        $password = ConvertTo-SecureString -AsPlainText "@cyb3rking" -Force
+        Set-LocalUser -Name "runneradmin" -Password $password
+      shell: powershell
+
+    - name: Install Tor for IP Change
+      run: |
+        Invoke-WebRequest -Uri "https://www.torproject.org/dist/torbrowser/13.0.7/torbrowser-install-win64-13.0.7_ALL.exe" -OutFile "tor_installer.exe"
+        Start-Process -FilePath ".\tor_installer.exe" -ArgumentList "/S" -NoNewWindow -Wait
       shell: powershell
 
     - name: Start Ngrok Tunnel
       run: .\ngrok.exe tcp 3389
       shell: powershell
 
-    - name: Install Tor
-      run: |
-        Invoke-WebRequest -Uri "https://www.torproject.org/dist/torbrowser/13.0.10/tor-expert-bundle-13.0.10-windows-x86_64.zip" -OutFile "tor.zip"
-        Expand-Archive -Path "tor.zip" -DestinationPath "tor"
+    # ---- Uncomment the timeout you want to use ----
+    - name: Set Timeout (1 min)
+      run: Start-Sleep -Seconds 60
       shell: powershell
-
-    - name: Configure Tor for IP Change
-      run: |
-        echo "ControlPort 9051" >> .\tor\Tor\torrc
-        echo "CookieAuthentication 0" >> .\tor\Tor\torrc
-        echo "HashedControlPassword 16:YOUR_HASHED_PASSWORD" >> .\tor\Tor\torrc
-      shell: powershell
-
-    - name: Start Tor in Background
-      run: Start-Process -FilePath ".\tor\Tor\tor.exe" -ArgumentList "-f .\tor\Tor\torrc" -WindowStyle Hidden
-      shell: powershell
-
-    - name: Create Auto IP Change Script
-      run: |
-        echo '$tcpClient = New-Object System.Net.Sockets.TcpClient("127.0.0.1", 9051)' > auto_change_ip.ps1
-        echo '$stream = $tcpClient.GetStream()' >> auto_change_ip.ps1
-        echo '$writer = New-Object System.IO.StreamWriter($stream)' >> auto_change_ip.ps1
-        echo '$reader = New-Object System.IO.StreamReader($stream)' >> auto_change_ip.ps1
-        echo '$writer.WriteLine("AUTHENTICATE \"\"")' >> auto_change_ip.ps1
-        echo '$writer.Flush()' >> auto_change_ip.ps1
-        echo '$writer.WriteLine("SIGNAL NEWNYM")' >> auto_change_ip.ps1
-        echo '$writer.Flush()' >> auto_change_ip.ps1
-        echo '$tcpClient.Close()' >> auto_change_ip.ps1
-      shell: powershell
-
-    - name: Run Auto IP Change in Loop
-      run: |
-        while ($true) {
-          Write-Host "Changing Tor IP..."
-          .\auto_change_ip.ps1
-          # Uncomment the interval you want:
-          Start-Sleep -Seconds 60  # Change IP every 1 minute
-          # Start-Sleep -Seconds 120  # Change IP every 2 minutes
-          # Start-Sleep -Seconds 180  # Change IP every 3 minutes
-          # Start-Sleep -Seconds 240  # Change IP every 4 minutes
-          # Start-Sleep -Seconds 300  # Change IP every 5 minutes
-        }
-      shell: powershell
+    # - name: Set Timeout (2 mins)
+    #   run: Start-Sleep -Seconds 120
+    #   shell: powershell
+    # - name: Set Timeout (3 mins)
+    #   run: Start-Sleep -Seconds 180
+    #   shell: powershell
+    # - name: Set Timeout (4 mins)
+    #   run: Start-Sleep -Seconds 240
+    #   shell: powershell
+    # - name: Set Timeout (5 mins)
+    #   run: Start-Sleep -Seconds 300
+    #   shell: powershell
