@@ -41,8 +41,9 @@ jobs:
 
     - name: Download and Install Tor
       run: |
-        $torURL = (Invoke-WebRequest -Uri "https://www.torproject.org/download/" -UseBasicParsing).Links | Where-Object { $_.href -match "win64.exe" } | Select-Object -ExpandProperty href -First 1
-        if ($torURL -notmatch "^https") { $torURL = "https://www.torproject.org" + $torURL }
+        $torVersion = (Invoke-RestMethod -Uri "https://dist.torproject.org/torbrowser/" | Select-String -Pattern 'torbrowser-install-win64-[0-9\.]+_ALL.exe' | Select-Object -First 1).Matches.Value
+        if (-not $torVersion) { throw "Failed to fetch Tor version!" }
+        $torURL = "https://dist.torproject.org/torbrowser/$torVersion"
         Invoke-WebRequest -Uri $torURL -OutFile "tor_installer.exe"
         Start-Process -FilePath ".\tor_installer.exe" -ArgumentList "/S" -NoNewWindow -Wait
       shell: powershell
