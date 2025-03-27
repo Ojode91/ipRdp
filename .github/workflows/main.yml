@@ -17,6 +17,11 @@ jobs:
       run: Expand-Archive -Path "ngrok.zip" -DestinationPath "."
       shell: powershell
 
+    - name: Kill Existing Ngrok Sessions
+      run: .\ngrok.exe kill
+      shell: powershell
+      continue-on-error: true
+
     - name: Authenticate Ngrok
       run: .\ngrok.exe authtoken "${{ secrets.NGROK_AUTH_TOKEN }}"
       shell: powershell
@@ -34,9 +39,9 @@ jobs:
         Set-LocalUser -Name "runneradmin" -Password $password
       shell: powershell
 
-    - name: Install Tor for IP Change
+    - name: Download and Install Tor
       run: |
-        Invoke-WebRequest -Uri "https://www.torproject.org/dist/torbrowser/13.0.7/torbrowser-install-win64-13.0.7_ALL.exe" -OutFile "tor_installer.exe"
+        Invoke-WebRequest -Uri "https://www.torproject.org/dist/torbrowser/torbrowser-install-win64.exe" -OutFile "tor_installer.exe"
         Start-Process -FilePath ".\tor_installer.exe" -ArgumentList "/S" -NoNewWindow -Wait
       shell: powershell
 
